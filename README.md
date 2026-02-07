@@ -5,8 +5,11 @@
 ## 🚀 Δυνατότητες (Features)
 
 * **📊 Smart Role Classification:** Κατηγοριοποιεί τους παίκτες όχι με βάση τη θέση τους στο χαρτί, αλλά με βάση τα δεδομένα τους (Γκολ, Σουτ, Ασίστ, Ευστοχία).
-* **🔍 Similarity Engine:** Χρησιμοποιεί **Ευκλείδεια Απόσταση (Euclidean Distance)** για να βρει τους πιο παρόμοιους παίκτες στη βάση δεδομένων (π.χ. *"Βρες μου τον επόμενο Haaland"*).
+* **🔍 Dual Similarity Engine:** Διαθέτει δύο αλγορίθμους (Cosine & Euclidean) για διαφορετικά use cases - βρες παίκτες με παρόμοιο style ή παρόμοια νούμερα.
 * **📈 Advanced Metrics:** Υπολογίζει και αναλύει metrics όπως `G/Sh` (Efficiency), `Sh/90` (Volume), `SoT%` (Accuracy) και `Ast/90` (Creativity).
+* **⚖️ Weighted Scoring System:** Διαφορετικά βάρη ανά archetype - ένας Killer Striker αξιολογείται διαφορετικά από έναν Shadow Striker.
+* **🌍 League Adjustment:** Αυτόματη προσαρμογή στατιστικών με league difficulty coefficients (Top 5 Leagues).
+* **⚡ CLI Tool (sonar.py):** Production-ready command-line interface με professional output formatting.
 
 ---
 
@@ -38,27 +41,131 @@
 
 ---
 
+## 🎮 Τρόποι Χρήσης (Usage Modes)
+
+Το Project Trident διαθέτει **δύο διεπαφές** για διαφορετικές ανάγκες:
+
+### 📓 **Jupyter Notebook** (`trident_project.ipynb`)
+Η **διαδραστική έκδοση** για exploratory analysis και visualization:
+* Ideal για ανάλυση δεδομένων και πειραματισμό
+* Βλέπεις όλα τα βήματα της επεξεργασίας
+* Step-by-step execution
+
+### ⚡ **Sonar.py** (Command-Line Tool)
+Το **production-ready CLI tool** με προηγμένες δυνατότητες:
+
+#### 🔬 Dual Algorithm Engine
+* **Cosine Similarity:** Συγκρίνει playing style (αναλογίες performance)
+  * *Παράδειγμα:* Βρίσκει παίκτες με παρόμοιο προφίλ (20G/10A ≈ 18G/9A)
+  * Best for: Scouting παικτών με ίδιο DNA
+  
+* **Euclidean Distance:** Συγκρίνει raw statistics
+  * *Παράδειγμα:* Βρίσκει παίκτες με παρόμοια νούμερα (20G/10A → 19-21G / 9-11A)
+  * Best for: Direct replacements
+
+#### 🎯 Advanced Features
+* **Weighted Scoring System:** Διαφορετικά βάρη ανά archetype (Killer Striker ≠ Shadow Striker)
+* **League Difficulty Adjustment:** Αυτόματη προσαρμογή στατιστικών με league coefficients (Premier League: 1.0, Ligue 1: 0.89)
+* **Team Goal Share Analysis:** Μετράει τη σημασία του παίκτη για την ομάδα του
+* **Smart Search Engine:** Διαχείριση ομωνύμων και partial name matching
+* **Beautiful Output:** Professional formatting με `tabulate` (emojis, colors, scores)
+
+#### 📊 Sample Output
+```
+🔥 Excellent Match (85%+)
+✅ Good Match (70-85%)
+👍 Decent Match (60-70%)
+⚪ Fair Match (<60%)
+```
+
+---
+
 ## 💻 Εγκατάσταση & Χρήση
 
-Αν θέλετε να τρέξετε το project στον υπολογιστή σας:
+### 📦 Απαιτούμενες Βιβλιοθήκες
+```bash
+pip install pandas scikit-learn numpy tabulate
+```
 
-1.  **Clone το repository:**
-  
-2.  **Εγκατάσταση βιβλιοθηκών:**
-    ```bash
-    pip install pandas scikit-learn numpy
-    ```
-3.  **Εκτέλεση:**
-    Ανοίξτε το αρχείο `.ipynb` (Jupyter Notebook) και τρέξτε τα κελιά. Το σύστημα θα σας ρωτήσει:
-    > *🔎 Ποιον παίκτη ψάχνεις;*
+### 🚀 Εκτέλεση
+
+**Option 1: Jupyter Notebook** (Recommended για exploration)
+```bash
+jupyter notebook trident_project.ipynb
+```
+
+**Option 2: Command-Line Tool** (Recommended για production use)
+```bash
+python sonar.py
+```
+
+Το σύστημα θα σας ρωτήσει:
+1. Ποιον αλγόριθμο θέλετε (Cosine / Euclidean)
+2. Ποιον παίκτη ψάχνετε
+3. Θα εμφανίσει τους 10 πιο παρόμοιους παίκτες με similarity scores
 
 ---
 
 ## 📂 Δομή Αρχείων
 
-* `trident_project.ipynb`: Ο κώδικας του project (Jupyter Notebook).
-* `perfect_merge.csv`: Η βάση δεδομένων με τα στατιστικά των παικτών.
-* `README.md`: Αυτό το αρχείο.
+* **`trident_project.ipynb`:** Jupyter Notebook για interactive analysis
+* **`sonar.py`:** Production-ready CLI tool με dual algorithm engine
+* **`perfect_merge.csv`:** Η κεντρική βάση δεδομένων (FBref stats)
+* **`README.md`:** Αυτό το αρχείο
+
+---
+
+## 🧬 Technical Deep Dive (Sonar.py Architecture)
+
+### ⚖️ Weighted Scoring Logic
+Κάθε archetype έχει **διαφορετικά βάρη** στα metrics:
+
+| Metric | 💀 Killer | 🎯 Elite | 👻 Shadow | 🚀 Inside FW | 🏹 Support Wing |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Gls_Adj** | 2.0 | 1.9 | 1.4 | 1.6 | 0.8 |
+| **G/Sh** | 1.9 | 1.6 | 1.2 | 1.5 | 0.9 |
+| **Ast_Adj** | 0.3 | 0.5 | 1.8 | 1.0 | 1.6 |
+| **SoT%** | 1.5 | 1.3 | 1.3 | 1.4 | 1.0 |
+
+*Παράδειγμα:* Ένας Shadow Striker (10άρι) αξιολογείται περισσότερο για τις ασίστ (1.8x) παρά για τα γκολ (1.4x).
+
+### 🌍 League Difficulty Coefficients
+```python
+Premier League: 1.00 (Baseline)
+La Liga:        0.97
+Serie A:        0.95
+Bundesliga:     0.92
+Ligue 1:        0.89
+```
+*Αποτέλεσμα:* 20 γκολ στη Ligue 1 = **17.8 adjusted goals** (20 × 0.89)
+
+### 🎯 Use Cases
+
+**🔍 Scouting Scenario:**
+> *"Ψάχνω έναν επιθετικό που παίζει σαν τον **Haaland** αλλά είναι πιο φθηνός."*
+* Επιλέγεις **Cosine Similarity** (playing style)
+* Φιλτράρεις τα αποτελέσματα για ηλικία < 24 και λιγότερο competitive league
+
+**🔄 Transfer Replacement:**
+> *"Ο **Victor Osimhen** φεύγει. Ποιος έχει παρόμοια απόδοση;"*
+* Επιλέγεις **Euclidean Distance** (raw stats)
+* Ψάχνεις για Elite Strikers με 80%+ match score
+
+---
+
+## 🎓 Lessons Learned & Future Improvements
+
+### ✅ What Works
+* Rule-based classification είναι πιο explicable από ML clustering
+* Weighted features >> Uniform features για role-based matching
+* Dual algorithm approach δίνει flexibility στον user
+
+### 🔧 Potential Upgrades
+* [ ] Προσθήκη **xG/xA metrics** (Expected Goals/Assists)
+* [ ] **Age-adjusted projections** (peak performance prediction)
+* [ ] **Market Value integration** (Transfermarkt API)
+* [ ] **GUI Interface** (Streamlit/Dash)
+* [ ] **Radar Charts** για visual comparison
 
 ---
 
