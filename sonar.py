@@ -82,7 +82,7 @@ def get_weights_by_role(role):
     if 'Killer' in role:
         weights.update({
             'Gls_Adj': 2.0,
-            'G/Sh': 1.9,      # Efficiency πάνω απ' όλα
+            'G/Sh': 1.9,
             'SoT%': 1.5,
             'G/SoT': 1.8,
             'Sh/90': 1.0,
