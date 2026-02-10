@@ -6,6 +6,14 @@ import plotly.graph_objects as go
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import cosine_similarity, euclidean_distances
 
+from sonar import (
+    load_and_prep_data,
+    find_similar_players_gui,
+    classify_player_role,
+    get_weights_by_role,
+    league_weights
+)
+
 # ============================================
 # ⚙️ PAGE CONFIGURATION
 # ============================================
@@ -21,4 +29,474 @@ st.set_page_config(
 # 🎨 CUSTOM CSS STYLING
 # ============================================
 
+def local_css():
+    st.markdown(
+        """
+        <style>
+        /* --- Global Styles --- */
+        .main {
+            background-color: #0e1117;
+        }
+        
+        /* ===== TYPOGRAPHY ===== */
+    h1, h2, h3 {
+        color: #FAFAFA !important;
+        font-family: 'Inter', sans-serif;
+    }
     
+    p, label {
+        color: #A0A0A0;
+    }
+    
+    /* ===== PLAYER CARD ===== */
+    .player-card {
+        background: linear-gradient(135deg, #1E1E1E 0%, #2D2D2D 100%);
+        padding: 24px;
+        border-radius: 12px;
+        border-left: 4px solid #00D9FF;
+        margin: 16px 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+     .player-card h2 {
+        color: #FAFAFA;
+        margin: 0;
+        font-size: 28px;
+        font-weight: bold;
+    }
+    
+    .player-card p {
+        color: #A0A0A0;
+        margin: 8px 0;
+        font-size: 16px;
+    }
+    
+    .role-badge {
+        display: inline-block;
+        background: #00D9FF;
+        color: #0E1117;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 8px;
+    }
+    
+    /* ===== PLAYER GRID CARD (Browse) ===== */
+    .player-grid-card {
+        background: #1E1E1E;
+        padding: 16px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #2D2D2D;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .player-grid-card:hover {
+        border-color: #00D9FF;
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 217, 255, 0.2);
+    }
+    
+    .player-grid-card h4 {
+        color: #FAFAFA;
+        margin: 0 0 8px 0;
+        font-size: 18px;
+    }
+    
+    .player-grid-card p {
+        color: #A0A0A0;
+        margin: 4px 0;
+        font-size: 14px;
+    }
+    
+    /* ===== STATS BOX ===== */
+    .stat-box {
+        background: #1E1E1E;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #2D2D2D;
+    }
+    
+    .stat-box h3 {
+        color: #00D9FF;
+        margin: 0;
+        font-size: 32px;
+        font-weight: bold;
+    }
+    
+    .stat-box p {
+        color: #A0A0A0;
+        margin: 8px 0 0 0;
+        font-size: 14px;
+    }
+    
+    /* ===== SIMILARITY BADGES ===== */
+    .sim-high {
+        color: #51CF66;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    .sim-med {
+        color: #FFD43B;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    .sim-low {
+        color: #FF6B6B;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    /* ===== BUTTONS ===== */
+    .stButton > button {
+        background: linear-gradient(135deg, #00D9FF 0%, #0099CC 100%);
+        color: #0E1117;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: bold;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #00F0FF 0%, #00B8E6 100%);
+        box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    /* ===== DIVIDER ===== */
+    hr {
+        border: none;
+        border-top: 1px solid #2D2D2D;
+        margin: 32px 0;
+    }
+    
+    /* ===== DATAFRAME STYLING ===== */
+    .dataframe {
+        background-color: #1E1E1E !important;
+        color: #FAFAFA !important;
+    }
+    
+    .dataframe th {
+        background-color: #2D2D2D !important;
+        color: #00D9FF !important;
+        font-weight: bold;
+    }
+    
+    .dataframe td {
+        background-color: #1E1E1E !important;
+        color: #FAFAFA !important;
+    }
+    
+    /* ===== METRICS ===== */
+    [data-testid="stMetricValue"] {
+        color: #00D9FF !important;
+        font-size: 32px !important;
+        font-weight: bold !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #A0A0A0 !important;
+    }
+    
+    /* ===== TABS ===== */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: #1E1E1E;
+        border-radius: 8px 8px 0 0;
+        padding: 12px 24px;
+        color: #A0A0A0;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #2D2D2D;
+        color: #00D9FF !important;
+    }
+    
+    </style>
+    """, unsafe_allow_html=True)
+    
+
+# ============================================
+# 💾 DATA LOADING (με Streamlit caching)
+# ============================================
+
+@st.cache_data
+def load_cached_data():
+    
+    """
+    Φορτώνει τα δεδομένα με caching για performance.
+    """
+    
+    return load_and_prep_data('perfect_merge.csv')
+
+
+# ============================================
+# 🎯 UI COMPONENTS
+# ============================================
+
+def render_player_card(player):
+   
+     """
+    Εμφανίζει player profile card με stats.
+    """
+    
+    league = player.get('League_Clean', player.get('Comp', 'Unknown'))
+    
+    st.markdown(f"""
+    <div class="player-card">
+        <h2>{player['Player']}</h2>
+        <p><strong>🏟️ {player['Squad']}</strong> | 👤 Age: {int(player['Age'])} | 📍 {player['Pos']}</p>
+        <p>🌍 {league} | ⏱️ {int(player['Min'])} minutes played</p>
+        <span class="role-badge">{player['Role']}</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    
+def render_stats_metrics(player):
+    
+    """
+    Εμφανίζει key stats σε metric format.
+    """
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.metric("⚽ Goals", int(player['Gls']))
+    
+    with col2:
+        st.metric("🎯 Assists", int(player['Ast']))
+    
+    with col3:
+        st.metric("📊 G/Sh", f"{player['G/Sh']:.2f}")
+    
+    with col4:
+        st.metric("🎪 SoT%", f"{player['SoT%']:.1f}%")
+    
+    with col5:
+        st.metric("🔫 Sh/90", f"{player['Sh/90']:.1f}")
+        
+        
+def get_similarity_badge(score):
+    
+    """
+    Επιστρέφει HTML badge ανάλογα με το similarity score.
+    """
+    
+    if score >= 85:
+        return f'<span class="sim-high">🟢 {score:.1f}%</span>'
+    elif score >= 70:
+        return f'<span class="sim-med">🟡 {score:.1f}%</span>'
+    else:
+        return f'<span class="sim-low">🔴 {score:.1f}%</span>'
+    
+
+def render_results_table(results):
+    
+    """
+    Εμφανίζει τα αποτελέσματα σε styled table.
+    """
+    
+    if results is None or len(results) == 0:
+        st.warning("No similar players found.")
+        return
+    
+    # Προετοιμασία δεδομένων
+    display_df = results[['Player', 'Squad', 'Role', 'Gls', 'Ast', 'G/Sh', 'SoT%', 'Similarity_Score']].copy()
+    
+    # Μορφοποίηση
+    display_df['Gls'] = display_df['Gls'].astype(int)
+    display_df['Ast'] = display_df['Ast'].astype(int)
+    display_df['G/Sh'] = display_df['G/Sh'].apply(lambda x: f"{x:.2f}")
+    display_df['SoT%'] = display_df['SoT%'].apply(lambda x: f"{x:.1f}%")
+    display_df['Similarity'] = display_df['Similarity_Score'].apply(lambda x: f"{x:.1f}%")
+    
+    display_df = display_df.drop(columns='Similarity_Score', axis=1) # Δεν θέλουμε να εμφανίσουμε την raw score στήλη
+    
+    # Εμφάνιση
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        height=400,
+        hide_index=True        
+    )
+    
+def render_radar_chart(target, similar_players):
+    
+    """
+    Δημιουργεί radar chart για σύγκριση παικτών.
+    """
+    
+    if similar_players is None or len(similar_players) == 0:
+        st.warning("Not enough data for radar chart")
+        return
+    
+    # Metrics για radar
+    metrics = ['Gls_Adj', 'Ast_Adj', 'Sh/90', 'SoT%', 'G/Sh']
+    
+    # Ελέγχουμε αν υπάρχουν οι στήλες
+    available_metrics = [m for m in metrics if m in target.index]
+    
+    if len(available_metrics) < 3:
+        st.warning("Not enough metrics available for radar chart")
+        return
+    
+    # Plotly radar chart
+    fig = go.Figure()
+    
+    colors = ['#00D9FF', '#51CF66', '#FFD43B', '#FF6B6B']
+    
+    # Προσθήκη target παίκτη
+    fig.add_trace(go.Scatterpolar(
+        r=[target[m] for m in available_metrics],
+        theta=available_metrics,
+        fill='toself',
+        name=target['Player'],
+        line_color=colors[0],
+        opacity=0.7
+    ))
+    
+    # Top 3 παρόμοιοι παίκτες
+    for idx, (_, row) in enumerate(similar_players.head(3).iterrows()):
+        if idx >= 3:
+            break
+        fig.add_trace(go.Scatterpolar(
+            r=[row[m] for m in available_metrics],
+            theta=available_metrics,
+            fill='toself',
+            name=row['Player'],
+            line_color=colors[idx + 1],
+            opacity=0.6
+        ))
+        
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                showgrid=True,
+                gridcolor='#2D2D2D',
+            ),
+            bgcolor='#1E1E1E'
+        ),
+        showlegend=True,
+        template='plotly_dark',
+        height=500,
+        paper_bgcolor='#0E1117',
+        plot_bgcolor='#0E1117',
+        font=dict(color='#FAFAFA')
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+
+# ============================================
+# 📄 PAGE: HOME
+# ============================================
+
+
+def page_home():
+    
+    """
+    Home page με search bar και role browsing.
+    """
+    
+    # Header
+    st.title("🔱 PROJECT TRIDENT")
+    st.subheader("Player Similarity Search Engine")
+    st.caption("⚽ Top 5 Leagues 2024/25")
+    
+    # Description
+    st.markdown("""
+    Find football players with **similar playing styles** across Europe's elite leagues.
+    
+    **Perfect for:**
+    - 🔍 Scouts finding transfer targets
+    - 📊 Analysts comparing player profiles
+    - ⚽ Fans exploring tactical alternatives
+    
+    **How it works:**
+    - Advanced similarity algorithms (Cosine/Euclidean)
+    - Adjusted for league difficulty
+    - 8 distinct player roles
+    - 5 key performance metrics
+    """)
+    
+    st.markdown("---")
+    
+    # Search Section
+    st.markdown("### 🔎 Search Player by Name")
+    
+    col1, col2 = st.columns([4, 1])
+    
+    with col1:
+        search_query = st.text_input(
+            "Player Name",
+            placeholder="e.g., Haaland, Mbappe, Kane...",
+            key="search_home",
+            label_visibility="collapsed"
+        )
+        
+    with col2:
+        search_btn = st.button("🚀 Search", type="primary", use_container_width=True)
+        
+    if search_btn and search_query:
+        st.session_state.page = "search"
+        st.session_state.search_query = search_query
+        st.rerun()
+        
+    st .markdown("---")
+    
+    # Role Browsing Section
+    st.markdown("### 🎯 Or Browse by Role")
+    
+    roles = [
+        "💀 Killer Striker",
+        "🎯 Elite Striker", 
+        "⚽ Striker",
+        "🔗 Support Striker",
+        "🚀 Winger / Inside Forward",
+        "⚡ Winger (Attacking)",
+        "👻 Shadow Striker / Creator",
+        "🏹 Supporting Winger"
+    ]
+    
+    # Grid layout (4 columns)
+    cols = st.columns(4)
+    
+    for idx, role in enumerate(roles):
+        with cols[idx % 4]:
+            if st.button(role, key=f"role_{idx}", use_container_width=True):
+                st.session_state.page = "browse"
+                st.session_state.selected_role = role
+                st.rerun()
+                
+    st.markdown("---")
+    
+    # Quick Stats
+    st.markdown("### 📊 Database Overview")
+    
+    df = load_cached_data()
+    
+    if df is not None:
+        col1, col2, col3 = st.columns(4)
+        
+        with col1:
+            st.metric("📋 Players Analyzed", len(df))
+        
+        with col2:
+            st.metric("🌍 Leagues Covered", 5)
+        
+        with col3:
+            st.metric("🎭 Role Categories", 8)
+        
+        with col4:
+            st.metric("⚽ Total Goals", int(df['Gls'].sum()))

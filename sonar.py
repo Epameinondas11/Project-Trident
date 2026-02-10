@@ -257,7 +257,8 @@ def load_and_prep_data(df):
 
 def find_similar_players(df, n_neighbors=10):
     """
-    Διαδραστική αναζήτηση + εύρεση παρόμοιων παικτών.
+    Διαδραστική αναζήτηση + εύρεση παρόμοιων παικτών (CLI VERSION).
+    Χρησιμοποιεί input() για command line interface.
     """
 
     # ========== ΕΠΙΛΟΓΗ ΑΛΓΟΡΙΘΜΟΥ ==========
@@ -437,6 +438,94 @@ def find_similar_players(df, n_neighbors=10):
 
 
 
+# --- 🔍 SIMILARITY SEARCH (API VERSION για Streamlit) ---
+
+def find_similar_players_gui(df, target_player, algorithm='cosine', n_neighbors=10):
+    
+    """
+    Βρίσκει παρόμοιους παίκτες (χωρίς input() - για Streamlit/API).
+    
+    Args:
+        df (DataFrame): Το prepared dataframe με παίκτες
+        target_player (Series): Η γραμμή του παίκτη που ψάχνουμε (df.iloc[x])
+        algorithm (str): 'cosine' ή 'euclidean'
+        n_neighbors (int): Πόσους παρόμοιους να βρει
+    
+    Returns:
+        DataFrame: Παρόμοιοι παίκτες με Similarity_Score στήλη
+    """
+    metric = algorithm
+    role = target_player['Role']
+    weights = get_weights_by_role(role)
+    
+    # Προετοιμασία Feature Data
+    feature_data = pd.DataFrame()
+    final_weights = {}
+    
+    for feat, w in weights.items():
+        if feat in df.columns:
+            feature_data[feat] = df[feat]
+            final_weights[feat] = w
+            
+    if feature_data.empty:
+        return None
+    
+    # Normalization
+    scaler = MinMaxScaler()
+    scaled_data = pd.DataFrame(
+        scaler.fit_transform(feature_data), 
+        columns=feature_data.columns,
+        index=df.index
+    )
+    
+    # Apply Weights
+    for col, w in final_weights.items():
+        scaled_data[col] = scaled_data[col] * w
+        
+    # K-Nearest Neighbors
+    model = NearestNeighbors(n_neighbors=n_neighbors+1, metric=metric)
+    model.fit(scaled_data)
+    
+    # Βρίσκουμε το index του target
+    target_matches = df[
+        (df['Player'] == target_player['Player']) &
+        (df['Squad'] == target_player['Squad'])
+    ]
+    
+    if len(target_matches) == 0:
+        target_matches = df[df['Player'] == target_player['Player']]
+        
+    if len(target_matches) == 0:
+        return None
+    
+    target_idx = target_matches.index[0]
+    
+    # Εύρεση παρόμοιων
+    distances, indices = model.kneighbors(scaled_data.loc[[target_idx]])
+    
+    # Αποτελέσματα (χωρίς τον ίδιο)
+    similar_indices = indices[0][1:]
+    similar_distances = distances[0][1:]
+    
+    results = df.iloc[similar_indices].copy()
+    
+    # Διαφορετικός υπολογισμός score ανά αλγόριθμο
+    if metric == 'cosine':
+        results['Similarity_Score'] = (1 - similar_distances) ** 0.5 * 100
+    else:  # euclidean
+        median_distance = np.median(similar_distances)
+        
+        if median_distance > 0:
+            results['Similarity_Score'] = 100 * np.exp(-similar_distances / (median_distance * 1.5))
+        else:
+            results['Similarity_Score'] = 100
+            
+    results['Similarity_Score'] = results['Similarity_Score'].clip(0, 100)
+    
+    return results
+
+
+
 # --- 🚀 MAIN APP ---
 
 if __name__ == "__main__":
@@ -445,7 +534,7 @@ if __name__ == "__main__":
     df_final = load_and_prep_data('perfect_merge.csv')
     
     if df_final is not None:
-        # 2️⃣ Εύρεση παρόμοιων παικτών
+        # 2️⃣ Εύρεση παρόμοιων παικτών (CLI VERSION)
         target_player, similar_players = find_similar_players(df_final, n_neighbors=10)
         
         if target_player is not None and similar_players is not None:
