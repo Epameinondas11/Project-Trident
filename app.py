@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import cosine_similarity, euclidean_distances
+from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 
 from sonar import (
     load_and_prep_data,
@@ -251,11 +251,9 @@ def load_cached_data():
 
 
 def render_player_card(player):
-   
-     """
+    """
     Εμφανίζει player profile card με stats.
     """
-    
     league = player.get('League_Clean', player.get('Comp', 'Unknown'))
     
     st.markdown(f"""
@@ -326,7 +324,7 @@ def render_results_table(results):
     display_df['SoT%'] = display_df['SoT%'].apply(lambda x: f"{x:.1f}%")
     display_df['Similarity'] = display_df['Similarity_Score'].apply(lambda x: f"{x:.1f}%")
     
-    display_df = display_df.drop(columns='Similarity_Score', axis=1) # Δεν θέλουμε να εμφανίσουμε την raw score στήλη
+    display_df = display_df.drop('Similarity_Score', axis=1) # Δεν θέλουμε να εμφανίσουμε την raw score στήλη
     
     # Εμφάνιση
     st.dataframe(
@@ -415,30 +413,43 @@ def page_home():
     Home page με search bar και role browsing.
     """
     
-    # Header
-    st.title("🔱 PROJECT TRIDENT")
-    st.subheader("Player Similarity Search Engine")
+    # Header (Compact)
+    st.markdown("<h1 style='margin-bottom: 0px;'>🔱 PROJECT TRIDENT</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: 0px; color: #A0A0A0;'>Player Similarity Search Engine</h3>", unsafe_allow_html=True)
     st.caption("⚽ Top 5 Leagues 2024/25")
     
-    # Description
-    st.markdown("""
-    Find football players with **similar playing styles** across Europe's elite leagues.
+    # Compact Description (2 columns)
+    col1, col2 = st.columns(2)
     
-    **Perfect for:**
-    - 🔍 Scouts finding transfer targets
-    - 📊 Analysts comparing player profiles
-    - ⚽ Fans exploring tactical alternatives
+    with col1:
+        st.markdown("""
+        <div style='font-size: 14px;'>
+        <p style='margin-bottom: 8px;'>Find football players with <strong>similar playing styles</strong> across Europe's elite leagues.</p>
+        <p style='margin-bottom: 4px;'><strong>Perfect for:</strong></p>
+        <ul style='margin-top: 0px; font-size: 13px;'>
+            <li>🔍 Scouts finding transfer targets</li>
+            <li>📊 Analysts comparing player profiles</li>
+            <li>⚽ Fans exploring tactical alternatives</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
-    **How it works:**
-    - Advanced similarity algorithms (Cosine/Euclidean)
-    - Adjusted for league difficulty
-    - 8 distinct player roles
-    - 5 key performance metrics
-    """)
+    with col2:
+        st.markdown("""
+        <div style='font-size: 14px;'>
+        <p style='margin-bottom: 4px;'><strong>How it works:</strong></p>
+        <ul style='margin-top: 0px; font-size: 13px;'>
+            <li>Advanced similarity algorithms (Cosine/Euclidean)</li>
+            <li>Adjusted for league difficulty</li>
+            <li>8 distinct player roles</li>
+            <li>5 key performance metrics</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # Search Section
+    # Search Section (More Prominent)
     st.markdown("### 🔎 Search Player by Name")
     
     col1, col2 = st.columns([4, 1])
@@ -456,10 +467,10 @@ def page_home():
         
     if search_btn and search_query:
         st.session_state.page = "search"
-        st.session_state.search_query = search_query
+        st.session_state.query = search_query
         st.rerun()
         
-    st .markdown("---")
+    st.markdown("---")
     
     # Role Browsing Section
     st.markdown("### 🎯 Or Browse by Role")
@@ -493,7 +504,7 @@ def page_home():
     df = load_cached_data()
     
     if df is not None:
-        col1, col2, col3 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.metric("📋 Players Analyzed", len(df))
@@ -740,3 +751,88 @@ def page_browse_role():
 
     with col4:
         min_minutes = st.number_input("⏱️ Min Minutes Played", 0, 3000, 450, step=50)
+        
+    # Εφαρμογή φίλτρων
+    if league_filter != 'Top 5 Leagues':
+        if 'League_Clean' in filtered.columns:
+            filtered = filtered[filtered['League_Clean'] == league_filter]
+        elif 'Comp' in filtered.columns:
+            filtered = filtered[filtered['Comp'] == league_filter]
+            
+    filtered = filtered[
+        (filtered['Age'] >= age_range[0]) &
+        (filtered['Age'] <= age_range[1]) &
+        (filtered['Min'] >= min_minutes)
+    ]
+    
+    filtered = filtered.sort_values(by=sort_options[sort_by], ascending=False)
+    
+    st.markdown("---")
+    
+    # Εμφάνιση αποτελεσμάτων σε grid
+    st.subheader(f"📋 {len(filtered)} Players")
+    
+    if len(filtered) == 0:
+        st.warning("❌ No players found with the selected filters.")
+        return
+    
+    # Grid layout (4 columns per row)
+    cols_per_row = 4
+    
+    for i in range(0, len(filtered), cols_per_row):
+        cols = st.columns(cols_per_row)
+        
+        for j, col in enumerate(cols):
+            if i + j < len(filtered):
+                player = filtered.iloc[i + j]
+                
+                with col:
+                    st.markdown(f"""
+                    <div class="player-grid-card">
+                        <h4>{player['Player']}</h4>
+                        <p>{player['Squad']}</p>
+                        <p><strong>{int(player['Gls'])}G</strong> | {int(player['Ast'])}A</p>
+                        <p>{player['SoT%']:.1f}% SoT</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("🔎 View", key=f"view_{i+j}", use_container_width=True):
+                        st.session_state.page = "search"
+                        st.session_state.query = player['Player']
+                        st.rerun()
+                        
+
+# ============================================
+# 🚀 MAIN APP ROUTER
+# ============================================
+
+
+
+def main():
+    """
+    Main app controller με page routing.
+    """
+    # Load CSS
+    local_css()
+    
+    # Initialize session state
+    if 'page' not in st.session_state:
+        st.session_state.page = "home"
+    
+    # Route to appropriate page
+    if st.session_state.page == "home":
+        page_home()
+    elif st.session_state.page == "search":
+        page_search_results()
+    elif st.session_state.page == "browse":
+        page_browse_role()
+        
+        
+
+# ============================================
+# 🎬 RUN APP
+# ============================================
+
+
+if __name__ == "__main__":
+    main()
