@@ -14,9 +14,11 @@ from sonar import (
     league_weights
 )
 
+
 # ============================================
 # ⚙️ PAGE CONFIGURATION
 # ============================================
+
 
 st.set_page_config(
     page_title = "🔱 Project Trident",
@@ -25,9 +27,11 @@ st.set_page_config(
     initial_sidebar_state = "collapsed"
 )
 
+
 # ============================================
 # 🎨 CUSTOM CSS STYLING
 # ============================================
+
 
 def local_css():
     st.markdown(
@@ -230,6 +234,7 @@ def local_css():
 # 💾 DATA LOADING (με Streamlit caching)
 # ============================================
 
+
 @st.cache_data
 def load_cached_data():
     
@@ -243,6 +248,7 @@ def load_cached_data():
 # ============================================
 # 🎯 UI COMPONENTS
 # ============================================
+
 
 def render_player_card(player):
    
@@ -500,3 +506,237 @@ def page_home():
         
         with col4:
             st.metric("⚽ Total Goals", int(df['Gls'].sum()))
+
+
+# ============================================
+# 📄 PAGE: SEARCH RESULTS
+# ============================================
+
+
+def page_search_results():
+
+    """
+    Εμφανίζει τα αποτελέσματα αναζήτησης με similarity scores.
+    """
+
+    # Back button
+    if st.button("🔙 Back to Home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    st.title("🔎 Search Results")
+
+    # Load data
+    df = load_cached_data()
+
+    if df is None:
+        st.error("❌ Failed to load data.")
+        return
+    
+    query = st.session_state.get("query", "")
+
+    # Εύρεση παίκτη(ες)
+    matches = df[df['Player'].str.contains(query, case=False, na=False)]
+
+    if len(matches) == 0:
+        st.error(f"❌ No players found matching '{query}'.")
+        st.info("💡 Try searching by last name (e.g., 'Haaland' instead of  'Erling Haaland')")
+        return
+    
+    elif len(matches) > 1:
+        st.warning(f"👥 Found {len(matches)} players matching '{query}'. Please select:")
+
+        players_options = [
+            f"{row['Player']} ({row['Squad']}, {row['Age']})" for _, row in matches.iterrows()
+        ]
+        
+        selected = st.selectbox("Choose Player", players_options)
+        selected_idx = players_options.index(selected)
+        target = matches.iloc[selected_idx]
+    else:
+        target = matches.iloc[0]
+
+    st.markdown("---")
+
+    # Εμφάνιση player card
+    st.subheader("🎭 Target Player Profile")
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        render_player_card(target)
+    
+    with col2:
+        st.markdown(f"### 📊 Key Stats for {target['Player']}")
+        render_stats_metrics(target)
+
+    st.markdown("---")
+
+    # Ρυθμίσεις αλγορίθμου
+    st.subheader("⚙️ Search Configuration")
+
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        algorithm = st.selectbox(
+            "Similarity Algorithm",
+            ["cosine", "euclidean"],
+            format_func=lambda x: "🎯 Cosine Similarity" if x == "cosine" else "📏 Euclidean Distance"
+        )
+
+    with col2:
+        top_n = st.slider("Number of Similar Players", 5, 20, 10)
+
+    # Εύρεση παρόμοιων παικτών
+    with st.spinner("🔍 Searching for similar players..."):
+        results = find_similar_players_gui(
+            df=df,
+            target_player=target,
+            algorithm=algorithm,
+            n_neighbors=top_n
+        )
+
+    if results is None or len(results) == 0:
+        st.warning("❌ No similar players found.")
+        return
+    
+    st.markdown("---")
+
+    # Εμφάνιση αποτελεσμάτων
+    st.subheader(f"📋 Similar Players ({len(results)}) Results")
+
+    # Tabs
+    tab1, tab2, tab3 = st.tabs(["📊 Table View", "📈 Visual Comparison", "🔍 Detailed Stats"])
+
+    with tab1:
+        render_results_table(results)
+
+        # Βutton για εξαγωγή αποτελεσμάτων σε CSV
+        csv = results.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Export Results as CSV",
+            data=csv,
+            file_name=f"similar_players_{target['Player'].replace(' ', '_')}.csv",
+            mime='text/csv',
+            use_container_width=True
+        )
+
+    with tab2:
+        st.markdown("#### 🕸️ Player Comparison Radar")
+        render_radar_chart(target, results)
+
+        # Bar chart για similarity scores
+        st.markdown("#### 📊 Similarity Scores")
+
+        fig_bar = px.bar(
+            results.head(10),
+            x='Player',
+            y='Similarity_Score',
+            color='Similarity_Score',
+            color_continuous_scale=['#FF6B6B', '#FFD43B', '#51CF66'],
+            labels={'Similarity_Score': 'Similarity (%)'},
+            title="Top 10 Similar Players"
+        )
+
+        fig_bar.update_layout(
+            template='plotly_dark',
+            paper_bgcolor='#0E1117',
+            plot_bgcolor='#0E1117',
+            font=dict(color='#FAFAFA'),
+            xaxis_tickangle=-45
+        )
+
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    with tab3:
+        st.markdown("#### 📋 Detailed Players Profiles")
+
+        for idx, (_, row) in enumerate(results.head(10).iterrows()):
+            with st.expander(f"#{idx + 1} {row['Player']} - {row['Squad']} ({row['Similarity_Score']:.1f}% similar)"):
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.write("**Basic Info:**")
+                    st.write(f"- Role: {row['Role']}")
+                    st.write(f"- Age: {int(row['Age'])}")
+                    st.write(f"- Position: {row['Pos']}")
+                    st.write(f"- Minutes: {int(row['Min'])}")
+
+                with col2:
+                    st .write("**Goals & Assists:**")
+                    st.write(f"- Goals: {int(row['Gls'])}")
+                    st.write(f"- Assists: {int(row['Ast'])}")
+                    st.write(f"- G+A: {int(row['Gls'] + row['Ast'])}")
+                    st.write(f"- Non-Penalty : {int(row['G-PK'])}")
+
+                with col3:
+                    st.write("**Shooting Stats:**")
+                    st.write(f"- Shots/90: {row['Sh/90']:.1f}")
+                    st.write(f"- SoT%: {row['SoT%']:.1f}%")
+                    st.write(f"- G/Sh: {row['G/Sh']:.2f}")
+                    if 'G/SoT' in row.index:
+                        st.write(f"- G/SoT: {row['G/SoT']:.2f}")
+
+
+# ============================================
+# 📄 PAGE: BROWSE BY ROLE
+# ============================================
+
+
+def page_browse_role():
+
+    """
+    Εμφανίζει παίκτες ανά ρόλο με δυνατότητα φιλτραρίσματος.
+    """
+
+    # Βack button
+    if st.button("🔙 Back to Home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    role = st.session_state.get("selected_role", '')
+    st.title(f"{role}")
+
+    # Φορτώνουμε τα δεδομένα
+    df = load_cached_data()
+
+    if df is None:
+        st.error("❌ Failed to load data.")
+        return
+    
+    # Φιλτράρουμε για τον επιλεγμένο ρόλο
+    filtered = df[df['Role'] == role]
+
+    st.caption(f"📊 {len(filtered)} players found")
+
+    st.markdown("---")
+
+    # Φίλτρα
+    st.subheader("🔧 Filters")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        leagues = ['Top 5 Leagues']
+        if 'League_Clean' in df.columns:
+            leagues += sorted(df['League_Clean'].unique().tolist())
+        elif 'Comp' in df.columns:
+            leagues += sorted(df['Comp'].unique().tolist())
+
+        league_filter = st.selectbox("🌍 League", leagues)
+
+    with col2:
+        age_range = st.slider("👤 Age Range", 16, 40, (18, 35))
+
+    with col3:
+        sort_options = {
+            "Goals (Gls)": "Gls",
+            "Assists (Ast)": "Ast",
+            "Goals per Shot (G/Sh)": "G/Sh",
+            "Shot Accuracy (SoT%)": "SoT%",
+            "Shots per 90 (Sh/90)": "Sh/90"
+        }
+        sort_by = st.selectbox("📊 Sort By", list(sort_options.keys()))
+
+    with col4:
+        min_minutes = st.number_input("⏱️ Min Minutes Played", 0, 3000, 450, step=50)
