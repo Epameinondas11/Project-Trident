@@ -157,9 +157,11 @@ def local_css():
     }
     
     /* ===== BUTTONS ===== */
+    
+    /* ===== BUTTONS ===== */
     .stButton > button {
         background: linear-gradient(135deg, #00D9FF 0%, #0099CC 100%);
-        color: #0E1117;
+        color: #0E1117 !important;  
         border: none;
         border-radius: 8px;
         padding: 12px 24px;
@@ -170,8 +172,14 @@ def local_css():
     
     .stButton > button:hover {
         background: linear-gradient(135deg, #00F0FF 0%, #00B8E6 100%);
+        color: #0E1117 !important;  
         box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4);
         transform: translateY(-2px);
+    }
+    
+    /* Ειδική διόρθωση αν το κείμενο είναι μέσα σε <p> tag στο κουμπί (συμβαίνει σε νέες εκδόσεις Streamlit) */
+    .stButton > button p {
+        color: #0E1117 !important;
     }
     
     /* ===== DIVIDER ===== */
