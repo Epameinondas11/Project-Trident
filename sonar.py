@@ -75,7 +75,6 @@ def get_weights_by_role(role):
     # Βασικά βάρη που ισχύουν για όλους
     weights = {
         'Team_Goal_Share': 1.5, # Πόσο σημαντικός είναι για την ομάδα του
-        'League_Factor': 1.0
     }
 
     # 💀 KILLER STRIKER
@@ -434,8 +433,38 @@ def find_similar_players(df, n_neighbors=10):
             results['Similarity_Score'] = 100
     
     results['Similarity_Score'] = results['Similarity_Score'].clip(0, 100)
+
+    target_league = target.get('League_Clean', 'Unknown')
+    results = diversify_results(results, target_league, max_per_league=4)
     
     return target, results
+
+
+
+# --- 🌍 LEAGUE DIVERSITY FILTER ---
+
+def diversify_results(results, target_league, max_per_league=4):
+    """
+    Εξασφαλίζει ότι τα αποτελέσματα δεν είναι όλα από την ίδια λίγκα.
+    Max 4 παίκτες από την ίδια λίγκα με τον target.
+    """
+    league_counts = {}
+    final_indices = []
+    
+    for idx, row in results.iterrows():
+        league = row.get('League_Clean', 'Unknown')
+        count = league_counts.get(league, 0)
+        
+        if league == target_league and count >= max_per_league:
+            continue
+            
+        league_counts[league] = count + 1
+        final_indices.append(idx)
+        
+        if len(final_indices) == 10:
+            break
+    
+    return results.loc[final_indices]
 
 
 
