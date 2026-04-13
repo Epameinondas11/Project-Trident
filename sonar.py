@@ -38,7 +38,7 @@ def classify_player_role(row):
     
     if 'MF' in pos:
         # Shadow Striker
-        if assists >= 0.19 and shot_accuracy >= 30:
+        if assists >= 0.25 and shot_accuracy >= 30: 
             return '👻 Shadow Striker / Creator'
         
         elif shots >= 2.8 and shot_accuracy >= 35:
@@ -232,6 +232,7 @@ def load_and_prep_data(df):
     df['Ast_Adj'] = df['Ast'] * df['League_Factor']
     df['G+A_Adj'] = (df['Gls'] + df['Ast']) * df['League_Factor']
     df['Gls_NoPK_Adj'] = (df['Gls'] - df['PK']) * df['League_Factor']
+    df['Sh_per90_Adj'] = (df['Sh'] / df['Min'] * 90) * df['League_Factor']
     
     # 8️⃣ ROLE CLASSIFICATION
     df['Role'] = df.apply(classify_player_role, axis=1)
@@ -511,7 +512,7 @@ def find_similar_players_gui(df, target_player, algorithm='cosine', n_neighbors=
     
     # Διαφορετικός υπολογισμός score ανά αλγόριθμο
     if metric == 'cosine':
-        results['Similarity_Score'] = (1 - similar_distances) ** 0.5 * 100
+        results['Similarity_Score'] = (1 - similar_distances) * 100
     else:  # euclidean
         median_distance = np.median(similar_distances)
         
