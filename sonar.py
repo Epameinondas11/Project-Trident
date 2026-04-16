@@ -2,7 +2,10 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
-from tabulate import tabulate
+try:
+    from tabulate import tabulate
+except ImportError:
+    tabulate = None
 
 
 
@@ -621,13 +624,18 @@ if __name__ == "__main__":
             
             # Εμφάνιση με tabulate
             print("\n📊 SIMILAR PLAYERS:\n")
-            print(tabulate(
-                table_data,
-                headers=headers,
-                tablefmt="fancy_grid",
-                numalign="center",
-                stralign="left"
-            ))
+            if tabulate is not None:
+                print(tabulate(
+                    table_data,
+                    headers=headers,
+                    tablefmt="fancy_grid",
+                    numalign="center",
+                    stralign="left"
+                ))
+            else:
+                # Fallback output when tabulate is not installed.
+                fallback_df = pd.DataFrame(table_data, columns=headers)
+                print(fallback_df.to_string(index=False))
             
             print("\n" + "="*100)
             print("💡 Legend: 🔥 Excellent (85%+) | ✅ Good (70-85%) | 👍 Decent (60-70%) | ⚪ Fair (<60%)")
